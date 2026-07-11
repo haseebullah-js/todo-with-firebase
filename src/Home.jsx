@@ -1,5 +1,19 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { auth, db } from "./firebaseconfig/Firebaseconfig";
+import {
+  collection,
+  addDoc,
+  deleteDoc,
+  updateDoc,
+  doc,
+  onSnapshot,
+  query,
+  where,
+  serverTimestamp,
+} from "firebase/firestore";
+
+import { useEffect } from "react";
 import {
   FaCheckCircle,
   FaClock,
@@ -45,74 +59,65 @@ const Home = () => {
   const [todos,setTodos] = useState([]);
   const [editId,setEditId] = useState(null);
 
+  useEffect(() => {
+  if (!auth.currentUser) return;
 
-  const addTodo = () => {
+  const q = query(
+    collection(db, "todos"),
+    where("uid", "==", auth.currentUser.uid)
+  );
 
-    if(!task.trim() || !description.trim()) return;
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const data = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
 
+    setTodos(data);
+  });
 
-    if(editId){
+  return () => unsubscribe();
+}, []);
 
-      setTodos(
-        todos.map((todo)=>
-          todo.id === editId
-          ?
-          {
-            ...todo,
-            task,
-            description
-          }
-          :
-          todo
-        )
-      );
+  const addTodo = async () => {
+    console.log(auth.currentUser?.uid);
+  if (!task.trim() || !description.trim()) return;
 
-      setEditId(null);
-
-    }
-
-    else{
-
-      setTodos([
-        ...todos,
-        {
-          id:Date.now(),
-          task,
-          description
-        }
-      ]);
-
-    }
-
-
-    setTask("");
-    setDescription("");
-
-  };
-
-
-  const deleteTodo = (id)=>{
-
-    setTodos(
-      todos.filter((todo)=>todo.id !== id)
-    );
-
-  };
-
-
-  const editTodo = (todo)=>{
-
-    setTask(todo.task);
-    setDescription(todo.description);
-    setEditId(todo.id);
-
-
-    todoRef.current.scrollIntoView({
-      behavior:"smooth"
+  if (editId) {
+    await updateDoc(doc(db, "todos", editId), {
+      task,
+      description,
     });
 
-  };
+    setEditId(null);
+  } else {
+    await addDoc(collection(db, "todos"), {
+      task,
+      description,
+      uid: auth.currentUser.uid,
+      createdAt: serverTimestamp(),
+    });
+  }
 
+  setTask("");
+  setDescription("");
+};
+
+
+  const deleteTodo = async (id) => {
+  await deleteDoc(doc(db, "todos", id));
+};
+
+
+const editTodo = (todo) => {
+  setTask(todo.task);
+  setDescription(todo.description);
+  setEditId(todo.id);
+
+  todoRef.current.scrollIntoView({
+    behavior: "smooth",
+  });
+};
 
 return (
 
