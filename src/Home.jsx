@@ -113,7 +113,6 @@ const editTodo = (todo) => {
   setTask(todo.task);
   setDescription(todo.description);
   setEditId(todo.id);
-
   todoRef.current.scrollIntoView({
     behavior: "smooth",
   });
